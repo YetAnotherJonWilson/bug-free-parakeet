@@ -1,31 +1,64 @@
-import React, { useEffect, useState } from "react";
-import { getSolidDataset, getThing, getUrlAll } from "@inrupt/solid-client";
-import { useSession } from "@inrupt/solid-ui-react";
-import { getOrCreateTodoList } from './../../utils'
-
-function AddTodo() {
-    const { session } = useSession();
-    const [todoList, setTodoList] = useState();
-
-    useEffect(() => {
-        if (!session) return;
-        (async () => {
-          const profileDataset = await getSolidDataset(session.info.webId, {
-            fetch: session.fetch,
-          });
-          const profileThing = getThing(profileDataset, session.info.webId);
-          const podsUrls = getUrlAll(
-            profileThing,
-            "http://www.w3.org/ns/pim/space#storage"
-          );
-          const pod = podsUrls[0];
-          const containerUri = `${pod}todos/`;
-          const list = await getOrCreateTodoList(containerUri, session.fetch);
-          setTodoList(list);
-        })();
-      }, [session]);
+import {
+    addDatetime,
+    addUrl,
+    addStringNoLocale,
+    createThing,
+    getSourceUrl,
+    saveSolidDatasetAt,
+    setThing,
+  } from "@inrupt/solid-client";
+  import { useSession } from "@inrupt/solid-ui-react";
+  import React, { useState } from "react";
   
-    return <button className="add-button">Add Todo</button>;
-}
-
-export default AddTodo;
+  const TEXT_PREDICATE = "http://schema.org/text";
+  const CREATED_PREDICATE = "http://www.w3.org/2002/12/cal/ical#created";
+  const TODO_CLASS = "http://www.w3.org/2002/12/cal/ical#Vtodo";
+  const TYPE_PREDICATE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
+  
+  function AddTodo({ todoList, setTodoList }) {
+    const { session } = useSession();
+    const [todoText, setTodoText] = useState("");
+  
+    const addTodo = async (text) => {
+      const indexUrl = getSourceUrl(todoList);
+      const todoWithText = addStringNoLocale(createThing(), TEXT_PREDICATE, text);
+      const todoWithDate = addDatetime(
+        todoWithText,
+        CREATED_PREDICATE,
+        new Date()
+      );
+      const todoWithType = addUrl(todoWithDate, TYPE_PREDICATE, TODO_CLASS);
+      const updatedTodoList = setThing(todoList, todoWithType);
+      const updatedDataset = await saveSolidDatasetAt(indexUrl, updatedTodoList, {
+        fetch: session.fetch,
+      });
+      setTodoList(updatedDataset);
+    };
+  
+    const handleSubmit = async (event) => {
+      event.preventDefault();
+      addTodo(todoText);
+      setTodoText("");
+    };
+  
+    const handleChange = (e) => {
+      e.preventDefault();
+      setTodoText(e.target.value);
+    };
+  
+    return (
+        <form className="todo-form" onSubmit={handleSubmit}>
+          <label htmlFor="todo-input">
+            <input
+              id="todo-input"
+              type="text"
+              value={todoText}
+              onChange={handleChange}
+            />
+          </label>
+          <button className="add-button" type="submit">Add Todo</button>
+        </form>
+    );
+  }
+  
+  export default AddTodo;
