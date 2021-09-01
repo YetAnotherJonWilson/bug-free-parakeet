@@ -23,15 +23,20 @@ function App() {
   const [oidcIssuer, setOidcIssuer] = useState("");
 
   const handleChange = (event) => {
+    console.log("oidcIssuer", event.target.value)
     setOidcIssuer(event.target.value);
   };
 
   useEffect(() => {
-    if (!session || !session.info.isLoggedIn) return; 
+    if (!session || !session.info.isLoggedIn) {
+      console.log("session", session)
+      return; 
+    }
     (async () => {
       const profileDataset = await getSolidDataset(session.info.webId, {
         fetch: session.fetch,
       });
+      console.log("session", session)
       const profileThing = getThing(profileDataset, session.info.webId);
       const podsUrls = getUrlAll(profileThing, STORAGE_PREDICATE);
       const pod = podsUrls[0];
